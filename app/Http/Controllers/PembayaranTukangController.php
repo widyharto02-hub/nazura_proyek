@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Pengaturan\HakAksesController;
 use App\Models\PembayaranTukang;
 use App\Models\Tukang;
+use App\Services\KeuanganProyekService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -203,7 +204,7 @@ class PembayaranTukangController extends Controller
             $filePayload = $this->storeProof($request);
             $storedFile = $filePayload['bukti_bayar'] ?? null;
 
-            PembayaranTukang::create([
+            $pembayaran = PembayaranTukang::create([
                 'tanggal' => $request->tanggal,
                 'id_tukang' => $request->id_tukang,
                 'nama_pekerjaan' => $request->nama_pekerjaan,
@@ -211,6 +212,16 @@ class PembayaranTukangController extends Controller
                 'nominal' => $nominal,
                 ...$filePayload,
             ]);
+
+            app(KeuanganProyekService::class)->catat(
+                KeuanganProyekService::SUMBER_PEMBAYARAN_TUKANG,
+                $pembayaran->id,
+                $request->tanggal,
+                $nominal,
+                $request->keterangan ?? 'Pembayaran upah tukang proyek',
+                null,
+                $filePayload['bukti_bayar'] ?? null
+            );
 
             DB::commit();
 
@@ -253,6 +264,15 @@ class PembayaranTukangController extends Controller
             ];
 
             $data->update(array_merge($payload, $filePayload));
+
+            app(KeuanganProyekService::class)->sinkron(
+                KeuanganProyekService::SUMBER_PEMBAYARAN_TUKANG,
+                (int) $data->id,
+                $request->tanggal,
+                $nominal,
+                $request->keterangan ?? 'Pembayaran upah tukang proyek'
+            );
+
             DB::commit();
 
             if ($storedFile && $oldFile && $oldFile !== $storedFile) {
@@ -283,6 +303,11 @@ class PembayaranTukangController extends Controller
         DB::beginTransaction();
 
         try {
+            app(KeuanganProyekService::class)->hapus(
+                KeuanganProyekService::SUMBER_PEMBAYARAN_TUKANG,
+                (int) $data->id
+            );
+
             $data->delete();
             DB::commit();
             $this->deleteProofFile($fileName);

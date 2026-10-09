@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Konfigurasi extends Model
 {
-    protected $table = 'konfigurasi';
+    protected $table = 'konfigurasi_proyek';
     public $timestamps = false;
 
     protected $fillable = [

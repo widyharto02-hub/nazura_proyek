@@ -130,7 +130,7 @@ class SiteplanController extends Controller
 
     public function cetakPDF($id_lokasi)
     {
-        $namaPerusahaan = DB::table('konfigurasi')->value('nama_perusahaan');
+        $namaPerusahaan = DB::table('konfigurasi_proyek')->value('nama_perusahaan');
         $lokasi         = DB::table('lokasi_kavling')->where('id_lokasi', $id_lokasi)->first();
         $namaKavling    = $lokasi->nama_kavling ?? '-';
         $periodeCetak   = now()->translatedFormat('d F Y');

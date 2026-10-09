@@ -8,6 +8,7 @@ use App\Models\MasterProjectDetail;
 use App\Models\PembayaranJasa;
 use App\Models\SettingProyek;
 use App\Models\Tukang;
+use App\Services\KeuanganProyekService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -235,7 +236,7 @@ class PembayaranJasaController extends Controller
             $filePayload = $this->storeProof($request);
             $storedFile = $filePayload['bukti_bayar'] ?? null;
 
-            PembayaranJasa::create([
+            $pembayaran = PembayaranJasa::create([
                 'id_setting_proyek' => $request->id_setting_proyek,
                 'id_master_project_detail' => $isCustom ? null : $detail->id,
                 'id_jasa_custom' => $isCustom ? $detail->id : null,
@@ -247,6 +248,16 @@ class PembayaranJasaController extends Controller
                 'bukti_bayar_original_name' => $filePayload['bukti_bayar_original_name'] ?? null,
                 'bukti_bayar_extension' => $filePayload['bukti_bayar_extension'] ?? null,
             ]);
+
+            app(KeuanganProyekService::class)->catat(
+                KeuanganProyekService::SUMBER_PEMBAYARAN_JASA,
+                $pembayaran->id,
+                $request->tanggal_pembayaran,
+                $jumlahBayar,
+                $request->keterangan ?? 'Pembayaran jasa proyek',
+                $setting->id_master_project,
+                $filePayload['bukti_bayar'] ?? null
+            );
 
             DB::commit();
 
@@ -314,6 +325,15 @@ class PembayaranJasaController extends Controller
                 'bukti_bayar_extension' => $filePayload['bukti_bayar_extension'] ?? $payment->bukti_bayar_extension,
             ]);
 
+            app(KeuanganProyekService::class)->sinkron(
+                KeuanganProyekService::SUMBER_PEMBAYARAN_JASA,
+                (int) $payment->id,
+                $request->tanggal_pembayaran,
+                $jumlahBayar,
+                $request->keterangan ?? 'Pembayaran jasa proyek',
+                $setting->id_master_project
+            );
+
             DB::commit();
 
             if ($storedFile && $oldFile && $oldFile !== $storedFile) {
@@ -346,6 +366,12 @@ class PembayaranJasaController extends Controller
         DB::beginTransaction();
         try {
             $fileName = $payment->bukti_bayar;
+
+            app(KeuanganProyekService::class)->hapus(
+                KeuanganProyekService::SUMBER_PEMBAYARAN_JASA,
+                (int) $payment->id
+            );
+
             $payment->delete();
             DB::commit();
             $this->deleteProofFile($fileName);

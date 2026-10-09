@@ -11,7 +11,7 @@ class User extends Authenticatable
 {
     use HasFactory;
 
-    protected $table = 'users';
+    protected $table = 'users_proyek';
 
     protected $fillable = [
         'surname',

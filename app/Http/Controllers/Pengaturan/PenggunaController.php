@@ -159,14 +159,14 @@ class PenggunaController extends Controller
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('users', 'username')
+                Rule::unique('users_proyek', 'username')
                     ->ignore($data->id)
                     ->where(fn($q) => $q->where('user_from', 2)),
             ],
             'email'    => [
                 'required',
                 'email',
-                Rule::unique('users', 'email')
+                Rule::unique('users_proyek', 'email')
                     ->ignore($data->id)
                     ->where(fn($q) => $q->where('user_from', 2)),
             ],

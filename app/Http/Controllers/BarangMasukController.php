@@ -10,6 +10,7 @@ use App\Models\BarangMasukDetail;
 use App\Models\BarangMasukPembayaran;
 use App\Models\Supplier;
 use App\Services\HargaBarangService;
+use App\Services\KeuanganProyekService;
 use App\Services\StockService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -334,6 +335,13 @@ class BarangMasukController extends Controller
         try {
             app(StockService::class)->deleteBarangMasuk($data);
 
+            foreach ($data->pembayaran as $pembayaran) {
+                app(KeuanganProyekService::class)->hapus(
+                    KeuanganProyekService::SUMBER_BARANG_MASUK,
+                    (int) $pembayaran->id
+                );
+            }
+
             $data->lampiran()->delete();
             $data->pembayaran()->delete();
             BarangMasukDetail::where('id_masuk', $data->id)->delete();
@@ -435,7 +443,7 @@ class BarangMasukController extends Controller
             $filePayload = $this->storePaymentProof($request);
             $storedFile = $filePayload['bukti_bayar'] ?? null;
 
-            BarangMasukPembayaran::create([
+            $pembayaran = BarangMasukPembayaran::create([
                 'id_barang_masuk' => $data->id,
                 'tanggal_pembayaran' => $request->tanggal_pembayaran,
                 'jumlah_bayar' => $jumlahBayar,
@@ -444,6 +452,16 @@ class BarangMasukController extends Controller
                 'bukti_bayar_original_name' => $filePayload['bukti_bayar_original_name'] ?? null,
                 'bukti_bayar_extension' => $filePayload['bukti_bayar_extension'] ?? null,
             ]);
+
+            app(KeuanganProyekService::class)->catat(
+                KeuanganProyekService::SUMBER_BARANG_MASUK,
+                $pembayaran->id,
+                $request->tanggal_pembayaran,
+                $jumlahBayar,
+                $request->keterangan_pembayaran ?? 'Pembelian material proyek',
+                null,
+                $filePayload['bukti_bayar'] ?? null
+            );
 
             $this->refreshPaymentStatus($data->fresh());
 
